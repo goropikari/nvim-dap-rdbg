@@ -7,27 +7,27 @@ vim.g.mapleader = ','
 vim.g.maplocalleader = ','
 vim.o.shell = 'bash'
 
-local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
+local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system {
+  vim.fn.system({
     'git',
     'clone',
     '--filter=blob:none',
     'https://github.com/folke/lazy.nvim.git',
     '--branch=stable', -- latest stable release
     lazypath,
-  }
+  })
 end
 vim.opt.rtp:prepend(lazypath)
 
-require('lazy').setup {
+require('lazy').setup({
   {
     'neanias/everforest-nvim',
     lazy = false,
     priority = 1000,
     config = function()
       require('everforest').setup()
-      vim.cmd [[colorscheme everforest]]
+      vim.cmd([[colorscheme everforest]])
     end,
   },
   {
@@ -48,8 +48,8 @@ require('lazy').setup {
         version = 'v4.0.0',
         dependencies = { 'nvim-neotest/nvim-nio' },
         config = function()
-          local dap = require 'dap'
-          local dapui = require 'dapui'
+          local dap = require('dap')
+          local dapui = require('dapui')
           dapui.setup()
           dap.listeners.after.event_initialized['dapui_config'] = dapui.open
           dap.listeners.before.event_terminated['dapui_config'] = dapui.close
@@ -105,12 +105,12 @@ require('lazy').setup {
     },
     ft = { 'ruby' },
   },
-}
+})
 
 vim.defer_fn(function()
-  require('nvim-treesitter.configs').setup {
+  require('nvim-treesitter.configs').setup({
     ensure_installed = { 'ruby' },
-  }
+  })
 end, 0)
 
 vim.keymap.set('n', '<F5>', function()
@@ -132,7 +132,7 @@ vim.keymap.set('n', '<Leader>B', function()
   require('dap').set_breakpoint()
 end)
 vim.keymap.set('n', '<Leader>lp', function()
-  require('dap').set_breakpoint(nil, nil, vim.fn.input 'Log point message: ')
+  require('dap').set_breakpoint(nil, nil, vim.fn.input('Log point message: '))
 end)
 vim.keymap.set('n', '<Leader>dr', function()
   require('dap').repl.open()

@@ -1,6 +1,6 @@
 local M = {}
 
-local dap = require 'dap'
+local dap = require('dap')
 
 ---@class PluginConfiguration
 ---@field rdbg RDBGConfiguration?
@@ -63,7 +63,7 @@ local function ui_input_text(prompt)
 end
 
 local function get_arguments()
-  return ui_input_list 'Args: '
+  return ui_input_list('Args: ')
 end
 
 ---@param plugin_opts PluginConfiguration
@@ -94,19 +94,19 @@ local function setup_adapter(plugin_opts)
       config.args = config.args or {}
       vim.list_extend(args, config.args)
 
-      callback {
+      callback({
         type = 'pipe',
         pipe = '${pipe}',
         executable = {
           command = command,
           args = args,
         },
-      }
+      })
     elseif config.sock_file ~= nil then
-      callback {
+      callback({
         type = 'pipe',
         pipe = config.sock_file,
-      }
+      })
     else
       local host = plugin_opts.remote.host
       local port = plugin_opts.remote.port
@@ -116,11 +116,11 @@ local function setup_adapter(plugin_opts)
         host = tmp_addr[1]
         port = tonumber(tmp_addr[2], 10)
       end
-      callback {
+      callback({
         type = 'server',
         host = host,
         port = port,
-      }
+      })
     end
   end
 end
@@ -158,7 +158,7 @@ local function setup_dap_configurations(plugin_opts)
       name = 'Ruby Debugger: Remote Attach via Unix domain socket',
       request = 'attach',
       sock_file = function()
-        return ui_input_text 'socket file path: '
+        return ui_input_text('socket file path: ')
       end,
     },
     {
