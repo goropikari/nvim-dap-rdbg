@@ -1,0 +1,16 @@
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Samples" %>
+
+<h1>Samples</h1>
+
+<div id="samples">
+  <% @samples.each do |sample| %>
+    <%= render sample %>
+    <p>
+      <%= link_to "Show this sample", sample %>
+    </p>
+  <% end %>
+</div>
+
+<%= link_to "New sample", new_sample_path %>
