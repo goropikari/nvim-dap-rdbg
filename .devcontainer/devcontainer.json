@@ -9,7 +9,7 @@
 		"ghcr.io/goropikari/devcontainer-feature/neovim:1": {},
 	},
 	"mounts": [
-		"source=./dev/nvim,target=/home/vscode/.config/nvim-dap-rdbg,type=bind"
+		"source=./example/nvim,target=/home/vscode/.config/nvim-dap-rdbg,type=bind"
 	],
     "containerEnv": {
         "NVIM_APPNAME": "nvim-dap-rdbg",
