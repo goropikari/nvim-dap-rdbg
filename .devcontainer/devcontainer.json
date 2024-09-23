@@ -1,0 +1,18 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "Ubuntu",
+	// "image": "mcr.microsoft.com/devcontainers/base:jammy",
+    "dockerFile": "Dockerfile",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
+		"ghcr.io/goropikari/devcontainer-feature/neovim:1": {},
+	},
+	"mounts": [
+		"source=./dev/nvim,target=/home/vscode/.config/nvim-dap-rdbg,type=bind"
+	],
+    "containerEnv": {
+        "NVIM_APPNAME": "nvim-dap-rdbg",
+    },
+	"postCreateCommand": "gem install debug -v 1.9.2",
+}
