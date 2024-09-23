@@ -36,9 +36,6 @@ require('lazy').setup {
       'nvim-treesitter/nvim-treesitter-textobjects',
     },
     build = ':TSUpdate',
-    opts = {
-      ensure_installed = { 'ruby' },
-    },
   },
   {
     'mfussenegger/nvim-dap',
@@ -109,6 +106,12 @@ require('lazy').setup {
     ft = { 'ruby' },
   },
 }
+
+vim.defer_fn(function()
+  require('nvim-treesitter.configs').setup {
+    ensure_installed = { 'ruby' },
+  }
+end, 0)
 
 vim.keymap.set('n', '<F5>', function()
   require('dap').continue()
