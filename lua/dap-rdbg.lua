@@ -133,23 +133,23 @@ local function rails_unix_domain_socket(callback, plugin_opts, config)
 
   local commands = { command }
   vim.list_extend(commands, args)
-  print(vim.inspect(commands))
+  -- print(vim.inspect(commands))
 
   async.void(function()
     async_system(commands, {})
   end)()
 
-  vim.wait(config.wait_time)
-
-  callback({
-    type = 'pipe',
-    pipe = sock_path,
-    enrich_config = function(cfg, on_config)
-      local final_config = vim.deepcopy(cfg)
-      final_config.request = 'attach'
-      on_config(final_config)
-    end,
-  })
+  vim.defer_fn(function()
+    callback({
+      type = 'pipe',
+      pipe = sock_path,
+      enrich_config = function(cfg, on_config)
+        local final_config = vim.deepcopy(cfg)
+        final_config.request = 'attach'
+        on_config(final_config)
+      end,
+    })
+  end, config.wait_time)
 end
 
 -- failed

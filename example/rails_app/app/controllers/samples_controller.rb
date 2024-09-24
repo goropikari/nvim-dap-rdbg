@@ -5,6 +5,7 @@ class SamplesController < ApplicationController
   def index
     x = 123
     y = x * 3
+    p 'Hello World!'
     @samples = Sample.all
     render json: {x: x, y: y}
   end
