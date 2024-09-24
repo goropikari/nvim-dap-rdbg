@@ -67,7 +67,10 @@ require('lazy').setup({
   },
   {
     dir = '/workspaces/nvim-dap-rdbg',
-    dependencies = { 'mfussenegger/nvim-dap' },
+    dependencies = {
+      'mfussenegger/nvim-dap',
+      'nvim-lua/plenary.nvim',
+    },
     opts = {
       remote = {
         host = '127.0.0.1',

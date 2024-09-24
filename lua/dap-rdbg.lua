@@ -1,6 +1,8 @@
 local M = {}
 
 local dap = require('dap')
+local async = require('plenary.async')
+local async_system = async.wrap(vim.system, 3)
 
 ---@class PluginConfiguration
 ---@field rdbg RDBGConfiguration?
@@ -66,6 +68,133 @@ local function get_arguments()
   return ui_input_list('Args: ')
 end
 
+local function build_command_args(plugin_opts, config)
+  local args = {}
+  local use_bundler = config.use_bundler or plugin_opts.rdbg.use_bundler
+  local command = ''
+  local common_rdbg_args = { '--open', '--command', '--' }
+  if use_bundler then
+    command = 'bundle'
+    vim.list_extend(args, { 'exec', 'rdbg' })
+    vim.list_extend(args, common_rdbg_args)
+    vim.list_extend(args, { 'bundle', 'exec' })
+  else
+    command = plugin_opts.rdbg.path
+    vim.list_extend(args, common_rdbg_args)
+  end
+
+  vim.list_extend(args, { config.command, config.script })
+  config.args = config.args or {}
+  vim.list_extend(args, config.args)
+  return {
+    command = command,
+    args = args,
+  }
+end
+
+-- pass
+local function rails_tcp(callback, plugin_opts, config)
+  local port = 12345
+  local tb = build_command_args(plugin_opts, config)
+  local command = tb.command
+  local args = { '--port', tostring(port), '--nonstop' }
+  vim.list_extend(args, tb.args)
+
+  local commands = { command }
+  vim.list_extend(commands, args)
+  -- print(vim.inspect(commands))
+
+  async.void(function()
+    async_system(commands, {})
+  end)()
+
+  vim.wait(config.wait_time)
+
+  callback({
+    type = 'server',
+    host = '127.0.0.1',
+    port = port,
+    enrich_config = function(cfg, on_config)
+      local final_config = vim.deepcopy(cfg)
+      final_config.request = 'attach'
+      final_config.port = '${port}'
+      on_config(final_config)
+    end,
+  })
+end
+
+-- pass
+local function rails_unix_domain_socket(callback, plugin_opts, config)
+  local sock_path = '/tmp/nvim_dap_rdbg_' .. tostring(os.time())
+  local tb = build_command_args(plugin_opts, config)
+  local command = tb.command
+  local args = { '--sock-path', sock_path, '--nonstop' }
+  vim.list_extend(args, tb.args)
+
+  local commands = { command }
+  vim.list_extend(commands, args)
+  print(vim.inspect(commands))
+
+  async.void(function()
+    async_system(commands, {})
+  end)()
+
+  vim.wait(config.wait_time)
+
+  callback({
+    type = 'pipe',
+    pipe = sock_path,
+    enrich_config = function(cfg, on_config)
+      local final_config = vim.deepcopy(cfg)
+      final_config.request = 'attach'
+      on_config(final_config)
+    end,
+  })
+end
+
+-- failed
+local function rails_unix_domain_socket2(callback, plugin_opts, config)
+  local tb = build_command_args(plugin_opts, config)
+  local command = tb.command
+  local args = { '--sock-path', '${pipe}', '--nonstop' }
+  vim.list_extend(args, tb.args)
+  print(vim.inspect(args))
+
+  callback({
+    type = 'pipe',
+    pipe = '${pipe}',
+    executable = {
+      command = command,
+      args = args,
+    },
+    enrich_config = function(cfg, on_config)
+      local final_config = vim.deepcopy(cfg)
+      final_config.request = 'attach'
+      on_config(final_config)
+    end,
+    options = {
+      timeout = 10000,
+    },
+  })
+end
+
+-- failed
+local function rails_executable(callback, plugin_opts, config)
+  local command = 'rdbg'
+  local args = { '--nonstop', '--command', '--', 'rails', 'server' }
+
+  callback({
+    type = 'executable',
+    command = command,
+    args = args,
+    enrich_config = function(cfg, on_config)
+      local final_config = vim.deepcopy(cfg)
+      final_config.request = 'launch'
+      on_config(final_config)
+    end,
+  })
+end
+
 ---@param plugin_opts PluginConfiguration
 local function setup_adapter(plugin_opts)
   -- Dap.AdapterFactory fun(callback: fun(adapter: Adapter), config: Configuration, parent?: Session)
@@ -74,25 +203,16 @@ local function setup_adapter(plugin_opts)
   dap.adapters.rdbg = function(callback, config)
     config = vim.deepcopy(config)
 
-    if config.request == 'launch' then
-      local args = {}
-      local use_bundler = config.use_bundler or plugin_opts.rdbg.use_bundler
-      local command = ''
-      local common_rdbg_args = { '--sock-path', '${pipe}', '--open', '--command', '--' }
-      if use_bundler then
-        command = 'bundle'
-        -- command = 'rdbg'
-        vim.list_extend(args, { 'exec', 'rdbg' })
-        vim.list_extend(args, common_rdbg_args)
-        vim.list_extend(args, { 'bundle', 'exec' })
-      else
-        command = plugin_opts.rdbg.path
-        vim.list_extend(args, common_rdbg_args)
-      end
-
-      vim.list_extend(args, { config.command, config.script })
-      config.args = config.args or {}
-      vim.list_extend(args, config.args)
+    if config.command == 'rails' then
+      -- rails_tcp(callback, plugin_opts, config)
+      rails_unix_domain_socket(callback, plugin_opts, config)
+      -- rails_unix_domain_socket2(callback, plugin_opts, config)
+      -- rails_executable(callback, plugin_opts, config)
+    elseif config.request == 'launch' then
+      local tb = build_command_args(plugin_opts, config)
+      local command = tb.command
+      local args = { '--sock-path', '${pipe}' }
+      vim.list_extend(args, tb.args)
 
       callback({
         type = 'pipe',
@@ -148,10 +268,11 @@ local function setup_dap_configurations(plugin_opts)
     {
       type = 'rdbg',
       name = 'Ruby Debugger: Rails server',
-      request = 'launch',
+      request = 'attach',
       command = 'rails',
       args = { 'server' },
       localfs = true,
+      wait_time = 2000,
     },
     {
       type = 'rdbg',

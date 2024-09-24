@@ -9,7 +9,10 @@
 ```lua
 {
   'goropikari/nvim-dap-rdbg',
-  dependencies = { 'mfussenegger/nvim-dap' },
+  dependencies = {
+    'mfussenegger/nvim-dap',
+    'nvim-lua/plenary.nvim',
+  },
   opts = {
     rdbg = {
       path = 'rdbg',
