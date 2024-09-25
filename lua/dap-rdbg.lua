@@ -7,7 +7,7 @@ local async_system = async.wrap(vim.system, 3)
 ---@class PluginConfiguration
 ---@field rdbg RDBGConfiguration?
 ---@field configurations table<Configuration>?
----@field remote {host:string, port:number}? default remote debbuggee host and port
+---@field remote {host:string, port:number}? default remote debugger host and port
 
 ---@class RDBGConfiguration
 ---@field path string

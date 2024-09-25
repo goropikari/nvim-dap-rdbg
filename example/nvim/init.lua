@@ -74,7 +74,7 @@ require('lazy').setup({
     opts = {
       remote = {
         host = '127.0.0.1',
-        port = 8080,
+        port = 12345,
       },
       configurations = {
         {
@@ -103,6 +103,12 @@ require('lazy').setup({
           command = 'rails',
           args = { 'server', '-b', '0.0.0.0' },
           use_bundler = true,
+        },
+        {
+          type = 'rdbg',
+          name = 'Ruby Debugger: Rails server (docker)',
+          request = 'attach',
+          localfsMap = '/rails:${workspaceFolder}',
         },
       },
     },
