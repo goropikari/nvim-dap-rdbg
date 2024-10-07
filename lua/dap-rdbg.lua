@@ -1,13 +1,13 @@
 local M = {}
 
 local dap = require('dap')
-local async = require('plenary.async')
-local async_system = async.wrap(vim.system, 3)
+local repl = require('dap.repl')
 
 ---@class PluginConfiguration
 ---@field rdbg RDBGConfiguration?
 ---@field configurations table<Configuration>?
 ---@field remote {host:string, port:number}? default remote debugger host and port
+---@field timeout number
 
 ---@class RDBGConfiguration
 ---@field path string
@@ -40,6 +40,7 @@ local default_config = {
     port = 12345,
   },
   configurations = {},
+  timeout = 3000,
 }
 
 -- https://github.com/leoluz/nvim-dap-go/blob/5511788255c92bdd845f8d9690f88e2e0f0ff9f2/lua/dap-go.lua#L34C1-L42C4
@@ -92,40 +93,8 @@ local function build_command_args(plugin_opts, config)
   }
 end
 
--- pass
-local function rails_tcp(callback, plugin_opts, config)
-  local port = 12345
-  local tb = build_command_args(plugin_opts, config)
-  local command = tb.command
-  local args = { '--port', tostring(port), '--nonstop' }
-  vim.list_extend(args, tb.args)
-
-  local commands = { command }
-  vim.list_extend(commands, args)
-  -- print(vim.inspect(commands))
-
-  async.void(function()
-    async_system(commands, {})
-  end)()
-
-  vim.wait(config.wait_time)
-
-  callback({
-    type = 'server',
-    host = '127.0.0.1',
-    port = port,
-    enrich_config = function(cfg, on_config)
-      local final_config = vim.deepcopy(cfg)
-      final_config.request = 'attach'
-      final_config.port = '${port}'
-      on_config(final_config)
-    end,
-  })
-end
-
--- pass
 local function rails_unix_domain_socket(callback, plugin_opts, config)
-  local sock_path = '/tmp/nvim_dap_rdbg_' .. tostring(os.time())
+  local sock_path = os.tmpname() .. '_nvim_dap_rdbg'
   local tb = build_command_args(plugin_opts, config)
   local command = tb.command
   local args = { '--sock-path', sock_path, '--nonstop' }
@@ -133,63 +102,37 @@ local function rails_unix_domain_socket(callback, plugin_opts, config)
 
   local commands = { command }
   vim.list_extend(commands, args)
-  -- print(vim.inspect(commands))
 
-  async.void(function()
-    async_system(commands, {})
-  end)()
+  local rdbg_start = false
+  local debugger_log_count = 0
+  vim.fn.jobstart(commands, {
+    on_stdout = function(job_id, data, event)
+      for _, line in ipairs(data) do
+        repl.append(line)
+      end
+    end,
+    on_stderr = function(job_id, data, event)
+      for _, line in ipairs(data) do
+        repl.append(line)
+        if line:find('DEBUGGER: Debugger') then
+          debugger_log_count = debugger_log_count + 1
+          -- 何故か2回 rdbg のログが出る。1回目の出たところでつなぐことができない。
+          rdbg_start = debugger_log_count == 2
+        end
+      end
+    end,
+  })
 
-  vim.defer_fn(function()
-    callback({
-      type = 'pipe',
-      pipe = sock_path,
-      enrich_config = function(cfg, on_config)
-        local final_config = vim.deepcopy(cfg)
-        final_config.request = 'attach'
-        on_config(final_config)
-      end,
-    })
-  end, config.wait_time)
-end
-
--- failed
-local function rails_unix_domain_socket2(callback, plugin_opts, config)
-  local tb = build_command_args(plugin_opts, config)
-  local command = tb.command
-  local args = { '--sock-path', '${pipe}', '--nonstop' }
-  vim.list_extend(args, tb.args)
-  print(vim.inspect(args))
+  vim.wait(config.timeout or internal_global_config.timeout, function()
+    return rdbg_start
+  end)
 
   callback({
     type = 'pipe',
-    pipe = '${pipe}',
-    executable = {
-      command = command,
-      args = args,
-    },
+    pipe = sock_path,
     enrich_config = function(cfg, on_config)
       local final_config = vim.deepcopy(cfg)
       final_config.request = 'attach'
-      on_config(final_config)
-    end,
-    options = {
-      timeout = 10000,
-    },
-  })
-end
-
--- failed
-local function rails_executable(callback, plugin_opts, config)
-  local command = 'rdbg'
-  local args = { '--nonstop', '--command', '--', 'rails', 'server' }
-
-  callback({
-    type = 'executable',
-    command = command,
-    args = args,
-    enrich_config = function(cfg, on_config)
-      local final_config = vim.deepcopy(cfg)
-      final_config.request = 'launch'
       on_config(final_config)
     end,
   })
@@ -272,7 +215,7 @@ local function setup_dap_configurations(plugin_opts)
       command = 'rails',
       args = { 'server' },
       localfs = true,
-      wait_time = 2000,
+      timeout = 3000,
     },
     {
       type = 'rdbg',
